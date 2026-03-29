@@ -14,4 +14,22 @@
     reason = "bad lints"
 )]
 
-const fn main() {}
+use clap::Parser;
+
+/// Main struct used to parse Cli inputs.
+#[derive(Parser)]
+struct Caw {
+    /// Features to use for the given crate.
+    #[arg(short, long, requires = "name")]
+    features: Vec<String>,
+    /// Name of the crate to add or update.
+    #[arg(short, long)]
+    name: Option<String>,
+    /// Path to the given crate.
+    #[arg(short, long, requires = "name")]
+    path: Option<String>,
+}
+
+fn main() {
+    Caw::parse();
+}
