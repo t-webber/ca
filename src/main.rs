@@ -1,4 +1,4 @@
-//! Caw, a better cargo add.
+//! Ca, a better cargo add.
 #![allow(
     clippy::single_call_fn,
     clippy::implicit_return,
@@ -18,7 +18,7 @@ use clap::Parser;
 
 /// Main struct used to parse Cli inputs.
 #[derive(Parser)]
-struct Caw {
+struct Ca {
     /// Features to use for the given crate.
     #[arg(short, long, requires = "name")]
     features: Vec<String>,
@@ -31,5 +31,5 @@ struct Caw {
 }
 
 fn main() {
-    Caw::parse();
+    Ca::parse();
 }
