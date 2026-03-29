@@ -4,3 +4,18 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+[lints.rust]
+missing_docs = "deny"
+warnings = "deny"
+unused = "deny"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
+style = "deny"
+perf = "deny"
+complexity = "deny"
+correctness = "deny"
+restriction = "deny"
+nursery = "deny"
