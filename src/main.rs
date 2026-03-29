@@ -13,8 +13,14 @@
     clippy::else_if_without_else,
     reason = "bad lints"
 )]
+#![expect(clippy::missing_errors_doc, reason = "it's a cli")]
+
+use std::env::current_dir;
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use clap::Parser;
+use color_eyre::eyre::{Context as _, bail};
 
 /// Main struct used to parse Cli inputs.
 #[derive(Parser)]
@@ -30,6 +36,36 @@ struct Ca {
     path: Option<String>,
 }
 
-fn main() {
-    Ca::parse();
+impl Ca {
+    /// Entry point for the [`Ca`] app.
+    #[expect(clippy::unused_self, unused_variables, reason = "todo")]
+    fn run(self) -> color_eyre::Result<()> {
+        let cargo_toml_path = find_cargo_toml()?;
+        let cargo_toml_content = read_to_string(&cargo_toml_path)
+            .with_context(|| format!("Failed to read {}", cargo_toml_path.display()))?;
+        Ok(())
+    }
+}
+
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+    Ca::parse().run()?;
+    Ok(())
+}
+
+/// Returns the path to the first `Cargo.toml` encountered.
+fn find_cargo_toml() -> color_eyre::Result<PathBuf> {
+    let cwd = current_dir().context("Failed to read cwd")?;
+    let mut path = cwd.as_path();
+    loop {
+        let toml = path.join("Cargo.toml");
+        if toml.is_file() {
+            return Ok(toml);
+        }
+        if let Some(parent) = path.parent() {
+            path = parent;
+        } else {
+            bail!("Couldn't find Cargo.toml, are you in a cargo project?");
+        }
+    }
 }
