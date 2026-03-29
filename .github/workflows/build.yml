@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    paths:
+      - '**/*.rs'
+      - '.github/workflows/build.yml'
+      - 'Cargo.*'
+  pull_request:
+    paths:
+      - '**/*.rs'
+      - '.github/workflows/build.yml'
+      - 'Cargo.*'
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+          matrix:
+            rust: [stable, nightly]
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Restore target
+              uses: actions/cache@v5
+              with:
+                path: |
+                  target
+                  ~/.cargo
+                key: build-target-${{ matrix.rust }}
+                restore-keys: build-target-${{ matrix.rust }}
+
+            - name: Install Rust
+              uses: actions-rs/toolchain@v1
+              with:
+                toolchain: ${{ matrix.rust }}
+                override: true
+
+            - name: Cargo build
+              run: cargo build --release --all-targets
