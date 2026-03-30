@@ -15,16 +15,21 @@
 )]
 #![expect(clippy::missing_errors_doc, reason = "it's a cli")]
 
+/// Parses a crate line from the `Cargo.toml`.
+mod crateline;
+
 use std::env::current_dir;
-use std::fs::read_to_string;
+use std::fs::{self, read_to_string};
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use color_eyre::eyre::{Context as _, ContextCompat as _, bail};
-use toml_edit::{Document, Item, Table, Value};
+use toml_edit::{DocumentMut, Item, Table};
+
+use crate::crateline::Crate;
 
 /// Main struct used to parse Cli inputs.
-#[derive(Parser)]
+#[derive(Parser, Default, Debug)]
 struct Ca {
     /// Features to use for the given crate.
     #[arg(short, long, requires = "name")]
@@ -32,17 +37,33 @@ struct Ca {
     /// Name of the crate to add or update.
     #[arg(short, long)]
     name: Option<String>,
+    /// Don't write to the `Cargo.toml`, simply print the output. Useful for debugging.
+    #[arg(short = 'w', long, default_value_t = false)]
+    nowrite: bool,
     /// Path to the given crate.
     #[arg(short, long, requires = "name")]
     path: Option<String>,
 }
 
 impl Ca {
-    /// Entry point for the [`Ca`] app.
-    #[expect(clippy::unused_self, clippy::dbg_macro, reason = "todo")]
+    /// Entry point for the [`Ca`] app, modifying the right `Cargo.toml`.
+    #[expect(clippy::dbg_macro, reason = "goal of nowrite")]
     fn run(self, cargo_toml_path: &Path) -> color_eyre::Result<()> {
-        let cargo_toml_content = read_to_string(cargo_toml_path).context("Failed to read file")?;
-        let toml: Document<String> = cargo_toml_content
+        let input = read_to_string(cargo_toml_path).context("Failed to read file")?;
+        let output = self.run_no_file(&input).context("Failed to parse file")?;
+        if self.nowrite {
+            dbg!(output);
+            Ok(())
+        } else {
+            fs::write(cargo_toml_path, output).context("Failed to write to file")
+        }
+    }
+
+    /// Entry point for the [`Ca`] app, taking as input the content of the `Cargo.toml` and
+    /// returning the new one.
+    #[expect(clippy::unused_self, clippy::dbg_macro, reason = "todo")]
+    fn run_no_file(&self, file_content: &str) -> color_eyre::Result<String> {
+        let toml: DocumentMut = file_content
             .trim_start_matches('\u{feff}')
             .parse()
             .context("Failed to parse toml")?;
@@ -54,13 +75,12 @@ impl Ca {
             .ok()
             .context("dependencies exists, but isn't a table")?;
 
-        for (name, item) in old_deps {
-            let Item::Value(Value::String(version)) = item else {
-                bail!("Invalid value for dependency {name}")
-            };
-            dbg!(name, version.value());
+        for item in old_deps {
+            let cr = Crate::try_from(item)?;
+            dbg!(cr);
         }
-        Ok(())
+
+        dbg!(Ok(toml.to_string()))
     }
 }
 
