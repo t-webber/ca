@@ -17,10 +17,11 @@
 
 use std::env::current_dir;
 use std::fs::read_to_string;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use color_eyre::eyre::{Context as _, bail};
+use color_eyre::eyre::{Context as _, ContextCompat as _, bail};
+use toml_edit::{Document, Item, Table, Value};
 
 /// Main struct used to parse Cli inputs.
 #[derive(Parser)]
@@ -38,18 +39,37 @@ struct Ca {
 
 impl Ca {
     /// Entry point for the [`Ca`] app.
-    #[expect(clippy::unused_self, unused_variables, reason = "todo")]
-    fn run(self) -> color_eyre::Result<()> {
-        let cargo_toml_path = find_cargo_toml()?;
-        let cargo_toml_content = read_to_string(&cargo_toml_path)
-            .with_context(|| format!("Failed to read {}", cargo_toml_path.display()))?;
+    #[expect(clippy::unused_self, clippy::dbg_macro, reason = "todo")]
+    fn run(self, cargo_toml_path: &Path) -> color_eyre::Result<()> {
+        let cargo_toml_content = read_to_string(cargo_toml_path).context("Failed to read file")?;
+        let toml: Document<String> = cargo_toml_content
+            .trim_start_matches('\u{feff}')
+            .parse()
+            .context("Failed to parse toml")?;
+
+        let old_deps = toml
+            .get("dependencies")
+            .map_or_else(|| Item::Table(Table::default()), Clone::clone)
+            .into_table()
+            .ok()
+            .context("dependencies exists, but isn't a table")?;
+
+        for (name, item) in old_deps {
+            let Item::Value(Value::String(version)) = item else {
+                bail!("Invalid value for dependency {name}")
+            };
+            dbg!(name, version.value());
+        }
         Ok(())
     }
 }
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    Ca::parse().run()?;
+    let cargo_toml_path = find_cargo_toml()?;
+    Ca::parse()
+        .run(&cargo_toml_path)
+        .with_context(|| format!("In {}", cargo_toml_path.display()))?;
     Ok(())
 }
 
